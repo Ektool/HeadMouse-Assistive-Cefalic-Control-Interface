@@ -33,9 +33,7 @@ class RecolectorIA:
         self.root.resizable(False, False)
         self.root.configure(bg="#111111")
 
-        # ==========================================
-        # 1. CORRECCIÓN DE AUTO-FOCO (ROBAR PANTALLA)
-        # ==========================================
+        # --- AUTO-FOCO: Fuerza la ventana a saltar al frente ---
         self.root.lift()
         self.root.attributes('-topmost', True)
         self.root.after_idle(self.root.attributes, '-topmost', False)
@@ -52,6 +50,7 @@ class RecolectorIA:
         self.arduino = None
         self.jugando = False
 
+        # --- RUTA ABSOLUTA Y PROTECCIÓN DE ARCHIVO ---
         directorio_actual = os.path.dirname(os.path.abspath(__file__))
         self.archivo_db = os.path.join(directorio_actual, "base_datos_headmouse.csv")
 
@@ -112,13 +111,12 @@ class RecolectorIA:
 
     def iniciar_juego(self):
         self.jugando = True
-        self.btn_iniciar.config(state=tk.DISABLED, text="ENTRENANDO... (Cierra la ventana para salir)", bg="#E74C3C")
+        self.btn_iniciar.config(state=tk.DISABLED, text="ENTRENANDO... (Usa el botón rojo para salir)", bg="#E74C3C")
         self.cursor_x = 400
         self.cursor_y = 300
         self.generar_objetivo()
 
     def generar_objetivo(self):
-        # Mantenemos los objetivos un poco más lejos de los bordes para que sea cómodo
         self.objetivo_x = random.randint(100, 700)
         self.objetivo_y = random.randint(100, 400)
         self.tipo_objetivo = random.choice([1, 2, 3]) 
@@ -129,13 +127,18 @@ class RecolectorIA:
         if not self.jugando: return
 
         colores = {1: "#E74C3C", 2: "#3498DB", 3: "#2ECC71"} 
-        # 2. CORRECCIÓN TEXTO INTUITIVO
         textos = {1: "Clic\nNormal", 2: "Clic\nDerecho", 3: "Doble\nClic"}
         
+        # Dibujar Objetivo
         color = colores[self.tipo_objetivo]
         self.canvas.create_oval(self.objetivo_x - 40, self.objetivo_y - 40, self.objetivo_x + 40, self.objetivo_y + 40, fill=color, outline="white", width=3)
         self.canvas.create_text(self.objetivo_x, self.objetivo_y, text=textos[self.tipo_objetivo], fill="white", font=("Arial", 11, "bold"), justify=tk.CENTER)
 
+        # BOTÓN DE SALIDA VIRTUAL
+        self.canvas.create_rectangle(680, 10, 790, 50, fill="#C0392B", outline="white", width=2)
+        self.canvas.create_text(735, 30, text="SALIR (Clic)", fill="white", font=("Arial", 10, "bold"))
+
+        # Cursor
         self.canvas.create_oval(self.cursor_x - 12, self.cursor_y - 12, self.cursor_x + 12, self.cursor_y + 12, fill="#F1C40F")
 
     def bucle_principal(self):
@@ -161,7 +164,7 @@ class RecolectorIA:
                             moveX, moveY = int(moveX_f), int(moveY_f)
 
                         if self.jugando:
-                            # 3. CORRECCIÓN BORDES Y DRIFT (Paredes más gruesas)
+                            # Limites de pantalla reforzados
                             self.cursor_x = max(15, min(785, self.cursor_x + moveX))
                             self.cursor_y = max(15, min(485, self.cursor_y + moveY))
                             self.dibujar_escena()
@@ -174,14 +177,21 @@ class RecolectorIA:
                                 pass 
 
                             if comando_clic > 0:
+                                # 1. DETECCIÓN DE SALIDA DE EMERGENCIA
+                                if 680 < self.cursor_x < 790 and 10 < self.cursor_y < 50:
+                                    self.on_closing()
+                                    return 
+
+                                # 2. DETECCIÓN DE OBJETIVO (Hitbox 65px)
                                 dist = math.sqrt((self.cursor_x - self.objetivo_x)**2 + (self.cursor_y - self.objetivo_y)**2)
-                                # 4. CORRECCIÓN HITBOX (Aumentado de 40 a 65 para perdonar temblores)
                                 if dist < 65 and comando_clic == self.tipo_objetivo:
                                     self.generar_objetivo()
             except:
                 pass
 
-        self.root.after(10, self.bucle_principal)
+        # Solo repetimos el bucle si la ventana sigue existiendo
+        if self.root.winfo_exists():
+            self.root.after(10, self.bucle_principal)
 
     def on_closing(self):
         if self.arduino and self.arduino.is_open:

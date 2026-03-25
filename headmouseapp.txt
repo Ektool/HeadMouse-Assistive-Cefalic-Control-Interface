@@ -18,7 +18,7 @@ import pyautogui
 import time
 import sys
 import threading
-import subprocess # NUEVA LIBRERÍA: Para abrir otros programas
+import subprocess
 import os
 import customtkinter as ctk
 import keyboard
@@ -43,6 +43,7 @@ class HeadMouseApp(ctk.CTk):
         self.corriendo = False
         self.modo_actual = "Escritorio"
         self.calibrando = False
+        self.proceso_ia = None # Variable para controlar el minijuego
 
         self.ultimo_moveX = 0.0
         self.ultimo_moveY = 0.0
@@ -103,58 +104,60 @@ class HeadMouseApp(ctk.CTk):
 
     def cambiar_modo(self, nuevo_modo):
         modo_anterior = self.modo_actual
-        self.modo_actual = nuevo_modo
-        self.log(f"Perfil cambiado a: {nuevo_modo}")
+        self.log(f"Intentando cambiar perfil a: {nuevo_modo}")
 
-        # === ARQUITECTURA MASTER HUB (LANZAMIENTO DE IA) ===
+        # === CASO 1: VAMOS HACIA EL ENTRENAMIENTO ===
         if nuevo_modo == "Entrenar IA":
-            self.lbl_status.configure(text="En Línea - MODO ENTRENAMIENTO (Standby)", text_color="#3498DB")
-            self.log("Liberando puerto USB para cederlo al minijuego...")
+            self.modo_actual = nuevo_modo # Pausamos el motor de fondo primero
+            time.sleep(0.2) 
             
-            # Soltamos el Arduino
+            self.lbl_status.configure(text="En Línea - MODO ENTRENAMIENTO", text_color="#3498DB")
+            self.log("Liberando puerto USB...")
+            
             if self.arduino and self.arduino.is_open:
                 self.arduino.close()
             
-            self.log("Lanzando Entrenador_IA.py...")
             try:
-                # Calculamos la ruta absoluta exacta para evitar el error de System32
                 directorio_actual = os.path.dirname(os.path.abspath(__file__))
                 ruta_entrenador = os.path.join(directorio_actual, "Entrenador_IA.py")
-                
-                # Lanzamos el programa usando la ruta completa
-                subprocess.Popen([sys.executable, ruta_entrenador])
-                self.log("¡Juego abierto! Vuelve a seleccionar 'Escritorio' al terminar.")
-            
+                self.proceso_ia = subprocess.Popen([sys.executable, ruta_entrenador])
+                self.log("¡Juego abierto! Usa el recuadro rojo del juego para salir.")
             except Exception as e:
-                # SI FALLA: Recuperamos el mouse automáticamente para no dejarte atascado
-                self.log(f"Error al abrir el juego: {e}")
-                self.log("Activando protocolo de seguridad: Recuperando puerto...")
+                self.log(f"Error al abrir: {e}")
                 self.seg_modos.set("Escritorio")
-                self.cambiar_modo("Escritorio") # Forzamos el regreso
+                self.cambiar_modo("Escritorio") 
 
+        # === CASO 2: VENIMOS DE REGRESO DEL ENTRENAMIENTO ===
+        elif modo_anterior == "Entrenar IA":
+            self.log("Recuperando el control del HeadMouse...")
+            
+            if self.proceso_ia and self.proceso_ia.poll() is None:
+                self.proceso_ia.terminate()
+            
+            time.sleep(1) # Tiempo para que Windows libere el puerto COM
+            
+            try:
+                # Re-instanciamos para evitar OSError 9
+                self.arduino = serial.Serial(self.puerto_detectado, BAUD_RATE, timeout=0.1)
+                time.sleep(1.5)
+                self.arduino.flushInput()
+                self.log("Puerto recuperado exitosamente.")
+                
+                self.modo_actual = nuevo_modo # Reactivamos el motor de fondo
+                self.lbl_status.configure(text="En Línea - MODO ESCRITORIO", text_color="#2ECC71")
+            except Exception as e:
+                self.log(f"Error al reconectar puerto: {e}")
+
+        # === CASO 3: CAMBIOS NORMALES ===
         else:
-            # Si venimos de Entrenar IA y queremos volver a usar el mouse normal
-            if modo_anterior == "Entrenar IA":
-                self.log("Recuperando el puerto USB...")
-                if self.arduino and not self.arduino.is_open:
-                    try:
-                        # Le damos 1 segundo al SO para que libere el puerto completamente
-                        time.sleep(1) 
-                        self.arduino.open()
-                        time.sleep(1.5)
-                        self.arduino.flushInput()
-                        self.log("Puerto recuperado exitosamente.")
-                    except Exception as e:
-                        self.log(f"Error al reconectar puerto: {e}")
-
+            self.modo_actual = nuevo_modo
             if nuevo_modo == "Películas":
                 self.lbl_status.configure(text="En Línea - MODO PELÍCULAS (Standby)", text_color="#9B59B6")
             elif nuevo_modo == "Gaming":
-                self.lbl_status.configure(text="En Línea - MODO GAMING (Baja Latencia)", text_color="#E74C3C")
-                self.ultimo_moveX = 0
-                self.ultimo_moveY = 0
+                self.lbl_status.configure(text="En Línea - MODO GAMING", text_color="#E74C3C")
+                self.ultimo_moveX, self.ultimo_moveY = 0, 0
             else:
-                self.lbl_status.configure(text="En Línea - MODO ESCRITORIO (IA Activa)", text_color="#2ECC71")
+                self.lbl_status.configure(text="En Línea - MODO ESCRITORIO", text_color="#2ECC71")
 
     def iniciar_calibracion_hilo(self):
         if not self.calibrando and self.puerto_detectado and self.modo_actual != "Entrenar IA":
@@ -229,12 +232,12 @@ class HeadMouseApp(ctk.CTk):
             self.corriendo = True
             
             while self.corriendo:
-                # Si estamos calibrando O si le dimos el puerto al juego, no leemos
+                # Si estamos calibrando o en IA, el hilo principal no hace nada
                 if self.calibrando or self.modo_actual == "Entrenar IA":
                     time.sleep(0.1)
                     continue
 
-                if self.arduino.in_waiting > 0:
+                if self.arduino and self.arduino.is_open and self.arduino.in_waiting > 0:
                     linea = self.arduino.readline().decode('utf-8', errors='ignore').strip()
                     if not linea or "CALIB" in linea or "EXITOSA" in linea: continue
                         
