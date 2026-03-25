@@ -40,7 +40,7 @@ Software Setup: * Install Python and ensure it is added to the system PATH.
 
 Install dependencies: pip install pyserial pyautogui customtkinter keyboard.
 
-Execution: Connect the USB. Run INICIAR_HEADMOUSE.bat to launch the Master Hub GUI.
+Execution: Connect the USB. Run HEADMOUSE_DRIVER.PY for safety then HEADMOUSEAPP.py to launch the Master Hub GUI.
 
 Calibration: Keep your head centered and press Ctrl+Shift+C. The system will capture 1500 samples to calculate the DC Offset.
 
