@@ -1,11 +1,11 @@
-HeadMouse: Assistive Cefalic Control Interface 🎯
-Author: Héctor Vieira (21-00290) - Universidad Simón Bolívar (USB)
+**HeadMouse: Assistive Cefalic Control Interface 🎯
+Author: Héctor Vieira (21-00290) - Universidad Simón Bolívar (USB)**
 
 Status: Alpha Prototype / Functional MVP
 
 HeadMouse is a low-cost, open-source, wearable Human Interface Device (HID) designed to provide full computer cursor control and clicking capabilities to individuals with upper limb motor disabilities. It uses inertial tracking and Time-of-Flight (ToF) technology to translate head movements and neck tilts into high-precision mouse actions.
 
-⚙️ Hardware Architecture & Components
+**⚙️ Hardware Architecture & Components**
 The system is designed to be affordable (under $30 USD) and relies on the following minimal hardware:
 
 Microcontroller: Arduino Nano (ATmega328P).
@@ -18,7 +18,7 @@ Chassis: 3D Printed Clamshell design (Manufactured in a Bambu Lab using PLA/PBT 
 
 Mounting: Woven elastic band routed through integrated chassis slots.
 
-🧠 Software Architecture
+**🧠 Software Architecture**
 The project is split into embedded firmware and a Python host driver:
 
 C++ Firmware (Arduino): Implements a 1D Kalman Filter to mitigate gyroscopic drift and thermal noise. The ToF sensor handles click logic: <400ms (Left Click), 400-1000ms (Double Click), >1000ms (Right Click). Distances are set at 150mm (action threshold) and 170mm (release) to create a mechanical hysteresis band. A distance of <45mm acts as a physical clutch to pause tracking.
@@ -27,7 +27,7 @@ Python Driver (HeadMouseApp.py): An asynchronous, multithreaded GUI built with c
 
 Machine Learning Colector (Entrenador_IA.py): An integrated mini-game that generates a "Ground Truth" Dataset (.csv). It collects real-time raw coordinates, smoothed coordinates, and click intent for future Long Short-Term Memory (LSTM) neural network training.
 
-🛠️ Assembly and Usage
+**🛠️ Assembly and Usage**
 Hardware: Flash the .ino firmware to the Arduino Nano. Wire the MPU6050 and VL53L0X via I2C. Assemble the hardware inside the PLA/PBT clamshell casing and secure the elastic band.
 
 Software Setup: * Install Python and ensure it is added to the system PATH.
@@ -40,7 +40,7 @@ Calibration: Keep your head centered and press Ctrl+Shift+C. The system will cap
 
 Operation Modes: Select "Escritorio" for EMA filtered control, "Gaming" for 1:1 raw input, or "Entrenar IA" to launch the dataset collection environment.
 
-⚖️ License and Copyright
+**⚖️ License and Copyright**
 The source code (Python and C++) is licensed under the Apache License 2.0. Copyright 2026 Héctor Vieira.
 
 The hardware designs, 3D parametric models, and technical documentation are licensed under the Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0). Created by Héctor Vieira.
